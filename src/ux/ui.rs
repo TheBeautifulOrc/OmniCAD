@@ -16,23 +16,42 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use bevy::app::PluginGroupBuilder;
+use super::input::InputEvent;
 use bevy::prelude::*;
-use input::InputPlugin;
-use ui::UIPlugin;
+use bevy::utils::HashMap;
 
-mod input;
-mod ui;
+pub struct UIPlugin;
 
-pub struct UXPlugins;
+impl Plugin for UIPlugin {
+    fn build(&self, app: &mut App) {}
+}
 
-impl PluginGroup for UXPlugins {
-    // fn build(&self, app: &mut App) {
-    //     app.insert_resource(Mode::default());
-    // }
-    fn build(self) -> bevy::app::PluginGroupBuilder {
-        PluginGroupBuilder::start::<Self>()
-            .add(InputPlugin)
-            .add(UIPlugin)
+#[derive(Resource, Component)]
+pub struct Mode {
+    name: &'static str,
+    // TODO: Change string for enum-based approach for keymap
+    keymap: HashMap<InputEvent, &'static str>,
+}
+impl Default for Mode {
+    fn default() -> Self {
+        Mode {
+            name: "Default mode",
+            keymap: HashMap::new(),
+        }
     }
+}
+
+#[derive(Component, Default)]
+enum Activity {
+    #[default]
+    Inactive,
+    Selected,
+    Active,
+}
+
+#[derive(Bundle)]
+struct Viewport {
+    default_mode: Mode,
+    active: Activity,
+    // TODO: Add UI implementation of Viewport
 }
