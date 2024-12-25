@@ -27,9 +27,6 @@ mod ui;
 pub struct UXPlugins;
 
 impl PluginGroup for UXPlugins {
-    // fn build(&self, app: &mut App) {
-    //     app.insert_resource(Mode::default());
-    // }
     fn build(self) -> bevy::app::PluginGroupBuilder {
         PluginGroupBuilder::start::<Self>()
             .add(InputPlugin)

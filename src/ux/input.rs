@@ -19,69 +19,151 @@
 use bevy::{
     input::{
         keyboard::{Key, KeyboardInput},
+        mouse::{MouseButtonInput, MouseMotion, MouseWheel},
         ButtonState,
     },
     prelude::*,
-    utils::HashMap,
 };
-use std::fmt::Debug;
+use std::fmt;
 
 pub struct InputPlugin;
 
 impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<InputEvent>();
-        app.add_systems(Update, input_handler);
-        app.insert_resource(ModifierKeys::new());
+        app.add_systems(
+            Update,
+            (
+                keyboard_handler.run_if(on_event::<KeyboardInput>),
+                click_handler.run_if(on_event::<MouseButtonInput>),
+                scroll_handler.run_if(on_event::<MouseWheel>),
+                mouse_motion_handler.run_if(on_event::<MouseMotion>),
+                #[cfg(feature = "debug_input")]
+                event_receiver.run_if(on_event::<InputEvent>),
+            ),
+        );
+    }
+}
+
+pub enum ScrollDirection {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+impl fmt::Debug for ScrollDirection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let dir = match self {
+            Self::Up => "Up",
+            Self::Down => "Down",
+            Self::Left => "Left",
+            Self::Right => "Right",
+        };
+        write!(f, "{}", dir)
     }
 }
 
 #[derive(Event)]
-pub struct InputEvent {
-    key: Key,
-    modifiers: ModifierKeys,
+pub enum InputEvent {
+    Keyboard {
+        key: Key,
+        state: ButtonState,
+        repeat: bool,
+    },
+    Click {
+        button: MouseButton,
+        state: ButtonState,
+    },
+    Scroll(ScrollDirection),
+    MouseMotion(Vec2),
 }
-impl Debug for InputEvent {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("InputEvent")
-            .field("key", &format!("{:?}", self.key))
-            .field("modifiers", &format!("{:?}", self.modifiers.0))
-            .finish()
+
+#[cfg(debug_assertions)]
+impl fmt::Debug for InputEvent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            InputEvent::Keyboard { key, state, repeat } => f
+                .debug_struct("InputEvent::Keyboard")
+                .field("key", key)
+                .field("state", state)
+                .field("repeat", repeat)
+                .finish(),
+            InputEvent::Click { button, state } => f
+                .debug_struct("InputEvent::Click")
+                .field("button", button)
+                .field("state", state)
+                .finish(),
+            InputEvent::Scroll(dir) => f
+                .debug_struct("InputEvent::Scroll")
+                .field("direction", dir)
+                .finish(),
+            InputEvent::MouseMotion(vec) => f
+                .debug_struct("InputEvent::MouseMotion")
+                .field("vec", vec)
+                .finish(),
+        }
     }
 }
 
-fn input_handler(
-    mut event_writer: EventWriter<InputEvent>,
+fn keyboard_handler(
     mut key_event_reader: EventReader<KeyboardInput>,
-    mut modifier_keys: ResMut<ModifierKeys>,
+    mut event_writer: EventWriter<InputEvent>,
 ) {
     for key_event in key_event_reader.read() {
-        // Track modifier keys
-        if let Some(modifier_count) = modifier_keys.0.get_mut(&key_event.logical_key) {
-            *modifier_count += match key_event.state {
-                ButtonState::Pressed => 1,
-                ButtonState::Released => -1,
-            };
-        }
-        // Send signale for all other keys
-        else if key_event.state == ButtonState::Pressed {
-            event_writer.send(InputEvent {
-                key: key_event.logical_key.clone(),
-                modifiers: modifier_keys.as_ref().clone(),
-            });
+        event_writer.send(InputEvent::Keyboard {
+            key: key_event.logical_key.clone(),
+            state: key_event.state,
+            repeat: key_event.repeat,
+        });
+    }
+}
+
+fn click_handler(
+    mut click_event_reader: EventReader<MouseButtonInput>,
+    mut event_writer: EventWriter<InputEvent>,
+) {
+    for click_event in click_event_reader.read() {
+        event_writer.send(InputEvent::Click {
+            button: click_event.button,
+            state: click_event.state,
+        });
+    }
+}
+
+fn scroll_handler(
+    mut scroll_event_reader: EventReader<MouseWheel>,
+    mut event_writer: EventWriter<InputEvent>,
+) {
+    for scroll_event in scroll_event_reader.read() {
+        let mut dir: Option<ScrollDirection> = None;
+        dir = Some(if scroll_event.x > 0f32 {
+            ScrollDirection::Left
+        } else {
+            ScrollDirection::Right
+        });
+        dir = Some(if scroll_event.y > 0f32 {
+            ScrollDirection::Up
+        } else {
+            ScrollDirection::Down
+        });
+        if let Some(dir) = dir {
+            event_writer.send(InputEvent::Scroll(dir));
         }
     }
 }
 
-#[derive(Resource, Clone)]
-pub struct ModifierKeys(HashMap<Key, i8>);
+fn mouse_motion_handler(
+    mut event_reader: EventReader<MouseMotion>,
+    mut event_writer: EventWriter<InputEvent>,
+) {
+    for event in event_reader.read() {
+        event_writer.send(InputEvent::MouseMotion(event.delta));
+    }
+}
 
-impl ModifierKeys {
-    fn new() -> Self {
-        let mut map: HashMap<Key, i8> = HashMap::new();
-        map.insert(Key::Shift, 0);
-        map.insert(Key::Control, 0);
-        map.insert(Key::Alt, 0);
-        ModifierKeys(map)
+#[cfg(feature = "debug_input")]
+fn event_receiver(mut event_reader: EventReader<InputEvent>) {
+    for event in event_reader.read() {
+        println!("{:?}", event);
     }
 }

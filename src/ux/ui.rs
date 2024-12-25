@@ -23,7 +23,9 @@ use bevy::utils::HashMap;
 pub struct UIPlugin;
 
 impl Plugin for UIPlugin {
-    fn build(&self, app: &mut App) {}
+    fn build(&self, app: &mut App) {
+        app.insert_resource(Mode::default());
+    }
 }
 
 #[derive(Resource, Component)]
