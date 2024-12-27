@@ -19,7 +19,7 @@
 use bevy::{
     input::{
         keyboard::{Key, KeyboardInput},
-        mouse::{MouseButtonInput, MouseMotion, MouseWheel},
+        mouse::{MouseButtonInput, MouseMotion, MouseScrollUnit, MouseWheel},
         ButtonState,
     },
     prelude::*,
@@ -45,24 +45,6 @@ impl Plugin for InputPlugin {
     }
 }
 
-pub enum ScrollDirection {
-    Up,
-    Down,
-    Left,
-    Right,
-}
-impl fmt::Debug for ScrollDirection {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let dir = match self {
-            Self::Up => "Up",
-            Self::Down => "Down",
-            Self::Left => "Left",
-            Self::Right => "Right",
-        };
-        write!(f, "{}", dir)
-    }
-}
-
 #[derive(Event)]
 pub enum InputEvent {
     Keyboard {
@@ -74,7 +56,10 @@ pub enum InputEvent {
         button: MouseButton,
         state: ButtonState,
     },
-    Scroll(ScrollDirection),
+    Scroll {
+        direction: Vec2,
+        unit: MouseScrollUnit,
+    },
     MouseMotion(Vec2),
 }
 
@@ -93,9 +78,10 @@ impl fmt::Debug for InputEvent {
                 .field("button", button)
                 .field("state", state)
                 .finish(),
-            InputEvent::Scroll(dir) => f
+            InputEvent::Scroll { direction, unit } => f
                 .debug_struct("InputEvent::Scroll")
-                .field("direction", dir)
+                .field("direction", direction)
+                .field("unit", unit)
                 .finish(),
             InputEvent::MouseMotion(vec) => f
                 .debug_struct("InputEvent::MouseMotion")
@@ -135,20 +121,20 @@ fn scroll_handler(
     mut event_writer: EventWriter<InputEvent>,
 ) {
     for scroll_event in scroll_event_reader.read() {
-        let mut dir: Option<ScrollDirection> = None;
-        dir = Some(if scroll_event.x > 0f32 {
-            ScrollDirection::Left
-        } else {
-            ScrollDirection::Right
-        });
-        dir = Some(if scroll_event.y > 0f32 {
-            ScrollDirection::Up
-        } else {
-            ScrollDirection::Down
-        });
-        if let Some(dir) = dir {
-            event_writer.send(InputEvent::Scroll(dir));
+        let mut direction = Vec2 {
+            x: scroll_event.x,
+            y: scroll_event.y,
+        };
+        if direction.x.abs() < direction.y.abs() {
+            direction.x = 0f32;
         }
+        if direction.y.abs() < direction.x.abs() {
+            direction.y = 0f32;
+        }
+        event_writer.send(InputEvent::Scroll {
+            direction,
+            unit: scroll_event.unit,
+        });
     }
 }
 

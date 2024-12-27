@@ -16,14 +16,20 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use bevy::prelude::*;
-use ux::UXPlugins;
-mod util;
-mod ux;
+use num_traits::{Num, Signed};
 
-fn main() {
-    let mut app = App::new();
-    app.add_plugins(DefaultPlugins);
-    app.add_plugins(UXPlugins);
-    app.run();
+fn abs_max<T: Num + PartialOrd + Signed + Clone>(a: &T, b: &T) -> T {
+    if a.abs() > b.abs() {
+        a.clone()
+    } else {
+        b.clone()
+    }
+}
+
+fn abs_min<T: Num + PartialOrd + Signed + Clone>(a: &T, b: &T) -> T {
+    if a.abs() < b.abs() {
+        a.clone()
+    } else {
+        b.clone()
+    }
 }

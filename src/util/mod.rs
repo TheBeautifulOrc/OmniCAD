@@ -16,14 +16,4 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use bevy::prelude::*;
-use ux::UXPlugins;
-mod util;
-mod ux;
-
-fn main() {
-    let mut app = App::new();
-    app.add_plugins(DefaultPlugins);
-    app.add_plugins(UXPlugins);
-    app.run();
-}
+mod math;
